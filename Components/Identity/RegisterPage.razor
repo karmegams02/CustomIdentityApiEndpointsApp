@@ -1,0 +1,46 @@
+﻿@page "/register-page"
+@using System.ComponentModel.DataAnnotations
+@using BlazorIdentityApiDemo.Data
+@inject HttpClient Http
+@rendermode InteractiveServer
+<h3>Register</h3>
+
+<EditForm Model="@registerRequest" OnValidSubmit="@RegisterSubmit" FormName="Register">
+   <DataAnnotationsValidator/>
+    <div class="mb-4">
+        <label class="form-label">Email</label>
+        <InputText @bind-Value="registerRequest.Email" class="form-control"></InputText>
+    </div>
+    <div class="mb-4">
+        <label class="form-label">Password</label>
+        <InputText @bind-Value="registerRequest.Password" type="password" class="form-control"></InputText>
+    </div>
+    <ValidationMessage For="@(() => registerRequest.Email)" />
+    <ValidationMessage For="@(() => registerRequest.Password)" />
+    <button type="submit" class="btn btn-primary">Register</button>
+</EditForm>
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <p class="text-success">@statusMessage</p>
+}
+@code {
+
+    public RegisterRequestDto registerRequest = new();
+    public string statusMessage { get; set; }
+    public async Task RegisterSubmit()
+    {
+        var result = await Http.PostAsJsonAsync("/register", new RegisterRequestDto()
+        {
+            Email = registerRequest.Email,
+            Password = registerRequest.Password
+        });
+        if (result.IsSuccessStatusCode)
+        {
+            statusMessage = "User registered successfully";
+        }
+        else
+        {
+            statusMessage = "User registration failed";
+        }
+    }
+}

@@ -1,0 +1,16 @@
+﻿using BlazorIdentityApiDemo.Data;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+
+namespace BlazorIdentityApiDemo.Data;
+
+public class ApplicationDbContext
+    : IdentityDbContext<ApplicationUser>
+{
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options)
+        : base(options)
+    {
+    }
+}
