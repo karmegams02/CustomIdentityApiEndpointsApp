@@ -1,0 +1,23 @@
+﻿@page "/auth-test"
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject AuthenticationStateProvider AuthProvider
+
+<h3>Authentication Test</h3>
+
+<p>@Message</p>
+
+@code {
+    private string Message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state =
+            await AuthProvider.GetAuthenticationStateAsync();
+
+        Message =
+            state.User.Identity?.IsAuthenticated == true
+                ? "Authenticated"
+                : "Not Authenticated";
+    }
+}

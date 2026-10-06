@@ -1,7 +1,6 @@
 using BlazorIdentityApiDemo.Components;
 using BlazorIdentityApiDemo.Data;
 using BlazorIdentityApiDemo.Endpoints;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -17,22 +16,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(
     builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-builder.Services.AddHttpClient();
-builder.Services.AddScoped(address =>
-{
-    var navManager = address.GetRequiredService<NavigationManager>();
-    return new HttpClient
-    {
-        BaseAddress = new Uri(navManager.BaseUri)
-    };
-});
 builder.Services.AddAuthorization();
 builder.Services
-.AddIdentityApiEndpoints<ApplicationUser>(options => { 
+.AddIdentityApiEndpoints<ApplicationUser>(options => {
 options.SignIn.RequireConfirmedEmail = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>();
-
+builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IEmailSender<ApplicationUser>, FakeEmailSender>();
 
 var app = builder.Build();

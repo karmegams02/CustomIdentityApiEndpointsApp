@@ -1,12 +1,12 @@
 ﻿@page "/secure-data"
 @using BlazorIdentityApiDemo.Data
-@using Microsoft.AspNetCore.Identity.Data
 @inject TokenStore TokenStore
-@inject HttpClient Http
+@inject IJSRuntime JS
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 <h3>SecureData</h3>
 
-<button class="btn btn-primary" onclick="@GetSecureData">Get secure Data</button>
+<button class="btn btn-primary" @onclick="GetSecureData">Get secure Data</button>
 @if(message is not null)
 {
 <p>@message</p>
@@ -18,34 +18,65 @@
 </button>
 @code {
     private string message = string.Empty;
+    private IJSObjectReference? browserApi;
+
     public async Task GetSecureData()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "secure-info");
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TokenStore.AccessToken);
-        var response = await Http.SendAsync(request);
-        message = await response.Content.ReadAsStringAsync();
+        try
+        {
+            browserApi ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+            var response = await browserApi.InvokeAsync<BrowserApiResponse>(
+                "send",
+                "/secure-info",
+                "GET",
+                null,
+                TokenStore.AccessToken);
+
+            message = response.Body;
+        }
+        catch (JSException exception)
+        {
+            message = $"Loading secure data failed: {exception.Message}";
+        }
     }
+
     public async Task RefreshToken()
     {
-        var request =await Http.PostAsJsonAsync("/refresh", new RefreshRequest()
+        try
         {
-            RefreshToken = TokenStore.RefreshToken
-        });
-        if (!request.IsSuccessStatusCode)
-        {
-            message = "Token refresh failed";
-            return;
-        }
-        else
-        {
-            var refreshResponse = request.Content.ReadFromJsonAsync<LoginResponse>();
-            if (refreshResponse.IsCompletedSuccessfully)
+            browserApi ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+            var response = await browserApi.InvokeAsync<BrowserApiResponse>(
+                "send",
+                "/refresh",
+                "POST",
+                new { RefreshToken = TokenStore.RefreshToken });
+
+            if (!response.IsSuccess)
             {
-                TokenStore.AccessToken = refreshResponse.Result.AccessToken;
-                TokenStore.RefreshToken = refreshResponse.Result.RefreshToken;
+                message = $"Token refresh failed with status code: {response.Status}";
+                return;
+            }
+
+            var loginResponse = response.ReadJson<LoginResponse>();
+            if (loginResponse is not null)
+            {
+                TokenStore.AccessToken = loginResponse.AccessToken;
+                TokenStore.RefreshToken = loginResponse.RefreshToken;
+                message = "Token refreshed successfully";
             }
         }
-       
+        catch (JSException exception)
+        {
+            message = $"Token refresh failed: {exception.Message}";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (browserApi is not null)
+        {
+            await browserApi.DisposeAsync();
+        }
     }
 }
 <p>Access token: @TokenStore.AccessToken</p>

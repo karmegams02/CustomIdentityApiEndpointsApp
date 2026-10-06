@@ -1,0 +1,145 @@
+﻿@page "/enable-2fa"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using BlazorIdentityApiDemo.Data
+@using Microsoft.AspNetCore.Authorization
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<h3>Two Factor Authentication</h3>
+
+<button class="btn btn-primary"
+        @onclick="GenerateSharedKey">
+    Generate Shared Key
+</button>
+
+@if (!string.IsNullOrEmpty(SharedKey))
+{
+    <div class="mt-4">
+
+        <h5>Shared Key</h5>
+
+        <div class="alert alert-info">
+            @SharedKey
+        </div>
+
+        <p>
+            Add this key manually to Microsoft Authenticator
+            or Google Authenticator.
+        </p>
+
+        <label>Authenticator Code</label>
+
+        <InputText @bind-Value="AuthenticatorCode"
+                   class="form-control" />
+
+        <button class="btn btn-success mt-3"
+                @onclick="EnableTwoFactorAsync">
+            Enable 2FA
+        </button>
+
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert alert-success mt-3">
+        @Message
+    </div>
+}
+
+@if (RecoveryCodes?.Length > 0)
+{
+    <h5 class="mt-4">
+        Recovery Codes
+    </h5>
+
+    <ul>
+        @foreach (var codes in RecoveryCodes)
+        {
+            <li>@codes</li>
+        }
+    </ul>
+}
+
+@code {
+
+    private string SharedKey = "";
+
+    private string AuthenticatorCode = "";
+
+    private string Message = "";
+
+    private string[] RecoveryCodes = [];
+
+    private IJSObjectReference? browserApi;
+
+    private async Task GenerateSharedKey()
+    {
+        try
+        {
+            browserApi ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+            var response = await browserApi.InvokeAsync<BrowserApiResponse>(
+                "send",
+                "/manage/2fa",
+                "POST",
+                new
+                {
+                    enable = false,
+                    resetSharedKey = true
+                });
+
+            if (!response.IsSuccess)
+            {
+                Message = response.Body;
+                return;
+            }
+
+            SharedKey = response.ReadJson<TwoFactorResponse>()?.SharedKey ?? "";
+        }
+        catch (JSException exception)
+        {
+            Message = $"Generating the shared key failed: {exception.Message}";
+        }
+    }
+
+    private async Task EnableTwoFactorAsync()
+    {
+        try
+        {
+            browserApi ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+            var response = await browserApi.InvokeAsync<BrowserApiResponse>(
+                "send",
+                "/manage/2fa",
+                "POST",
+                new
+                {
+                    enable = true,
+                    twoFactorCode = AuthenticatorCode,
+                    resetRecoveryCodes = true
+                });
+
+            if (!response.IsSuccess)
+            {
+                Message = response.Body;
+                return;
+            }
+
+            RecoveryCodes = response.ReadJson<TwoFactorResponse>()?.RecoveryCodes ?? [];
+            Message = "Two-factor authentication enabled successfully.";
+        }
+        catch (JSException exception)
+        {
+            Message = $"Enabling two-factor authentication failed: {exception.Message}";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (browserApi is not null)
+        {
+            await browserApi.DisposeAsync();
+        }
+    }
+}

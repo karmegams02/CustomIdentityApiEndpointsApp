@@ -1,8 +1,9 @@
 ﻿@page "/register-page"
 @using System.ComponentModel.DataAnnotations
 @using BlazorIdentityApiDemo.Data
-@inject HttpClient Http
+@inject IJSRuntime JS
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 <h3>Register</h3>
 
 <EditForm Model="@registerRequest" OnValidSubmit="@RegisterSubmit" FormName="Register">
@@ -26,21 +27,35 @@
 @code {
 
     public RegisterRequestDto registerRequest = new();
-    public string statusMessage { get; set; }
+    public string statusMessage { get; set; } = string.Empty;
+    private IJSObjectReference? browserApi;
+
     public async Task RegisterSubmit()
     {
-        var result = await Http.PostAsJsonAsync("/register", new RegisterRequestDto()
+        try
         {
-            Email = registerRequest.Email,
-            Password = registerRequest.Password
-        });
-        if (result.IsSuccessStatusCode)
-        {
-            statusMessage = "User registered successfully";
+            browserApi ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+            var result = await browserApi.InvokeAsync<BrowserApiResponse>("send", "/register", "POST", new
+            {
+                Email = registerRequest.Email,
+                Password = registerRequest.Password
+            });
+
+            statusMessage = result.IsSuccess
+                ? "User registered successfully"
+                : $"User registration failed with status code: {result.Status}";
         }
-        else
+        catch (JSException exception)
         {
-            statusMessage = "User registration failed";
+            statusMessage = $"User registration failed: {exception.Message}";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (browserApi is not null)
+        {
+            await browserApi.DisposeAsync();
         }
     }
 }

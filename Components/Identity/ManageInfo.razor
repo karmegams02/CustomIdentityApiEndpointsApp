@@ -1,0 +1,43 @@
+﻿@page "/manage-info"
+@using BlazorIdentityApiDemo.Data
+@rendermode InteractiveServer
+
+@inject IJSRuntime JS
+
+<button @onclick="GetProfile">Get details</button>
+<pre>@message</pre>
+<p>=====================================================</p>
+<div class="form-control">
+    <label class="form-control">New Email (Optional)</label>
+    <InputText @bind-Value="newEmail"></InputText>
+</div>
+<div class="form-control">
+    <label class="form-control">Old password</label>
+    <InputText @bind-Value="oldPassword"></InputText>
+</div>
+<div class="form-control">
+    <label class="form-control">New password</label>
+    <InputText @bind-Value="newPassword"></InputText>
+</div>
+<button @onclick="UpdateProfile">Update details</button>
+<pre>@message1</pre>
+@code{
+    private string oldPassword = string.Empty;
+    private string newPassword = string.Empty;
+    private string newEmail = string.Empty;
+    private string message = string.Empty;
+    private string message1 = string.Empty;
+    private async Task GetProfile()
+    {
+        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+        var result=await module.InvokeAsync<BrowserApiResponse>("send", "/manage/info", "GET");
+        message = result.Body;
+    }
+    private async Task UpdateProfile()
+    {
+        var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/browser-auth.js");
+        var result=  await module.InvokeAsync<BrowserApiResponse>("send", "/manage/info", "POST",new{NewPassword=newPassword,
+            OldPassword=oldPassword,NewEmail=newEmail});
+        message1 = result.Status.ToString();
+    }
+}
