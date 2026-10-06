@@ -1,0 +1,29 @@
+﻿@page "/resend-confirmation-email"
+@rendermode InteractiveServer
+@inject HttpClient Http
+<h3>Resend Confirmation Email</h3>
+
+<div>
+    <label class="form-label">Email</label>
+    <InputText @bind-Value="email" class="form-control"></InputText>
+    <button class="btn btn-primary mt-2" @onclick="ResendConfirmationEmailAsync">Resend Confirmation Email</button>
+</div>
+<p> @message</p>
+@code{
+    public string email { get; set; }
+    private string message { get; set; }
+    public async Task ResendConfirmationEmailAsync()
+    {
+        var result = await Http.PostAsJsonAsync("/resendConfirmationEmail", new { Email = email });
+        if (!result.IsSuccessStatusCode)
+        {
+            message=$"Resend confirmation email failed with status code: {result.StatusCode}";
+        }
+        else
+        {
+            message = "Confirmation email resent successfully";
+        }
+    }
+
+
+}
